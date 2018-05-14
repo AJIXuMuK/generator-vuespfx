@@ -1,0 +1,31 @@
+{
+  "name": "generator-vuespfx",
+  "version": "0.0.1",
+  "description": "SPFx Generator with Vue.js support",
+  "files": [
+    "app"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AJIXuMuK/generator-vuespfx.git"
+  },
+  "keywords": [
+    "yeoman-generator",
+    "vuejs",
+    "spfx"
+  ],
+  "author": "Alex Terentiev",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AJIXuMuK/generator-vuespfx/issues"
+  },
+  "homepage": "https://github.com/AJIXuMuK/generator-vuespfx#readme",
+  "dependencies": {
+    "@microsoft/generator-sharepoint": "^1.4.1",
+    "chalk": "^2.4.1",
+    "yeoman-generator": "^2.0.5"
+  }
+}
