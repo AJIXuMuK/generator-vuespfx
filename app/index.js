@@ -78,8 +78,6 @@ module.exports = class extends Generator {
     _applyGulpConfig() {
         let gulpfileContent = this.fs.read(this.destinationPath('gulpfile.js'));
 
-        console.log(gulpfileContent);
-
         gulpfileContent = gulpfileContent.replace(/build\.initialize\(gulp\);/gmi, `
 var merge = require('webpack-merge');
 const { VueLoaderPlugin } = require('vue-loader');
@@ -201,12 +199,11 @@ build.initialize(gulp);`);
         }
       })
     });
-${webPartContent.slice(renderMethodCloseBraceIndex)}`;
+  ${webPartContent.slice(renderMethodCloseBraceIndex)}`;
 
-        webPartContent = `
-    import Vue from 'vue';
-    import ${this.componentClassName}Component from './components/${this.componentClassName}/${this.componentClassName}.vue';
-    ${webPartContent}`;
+        webPartContent = `import Vue from 'vue';
+import ${this.componentClassName}Component from './components/${this.componentClassName}/${this.componentClassName}.vue';
+${webPartContent}`;
 
         fs.writeFileSync(webPartFilePath, webPartContent);
     }
