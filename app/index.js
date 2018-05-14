@@ -201,7 +201,7 @@ build.initialize(gulp);`);
         }
       })
     });
-    ${webPartContent.slice(renderMethodCloseBraceIndex)}`;
+${webPartContent.slice(renderMethodCloseBraceIndex)}`;
 
         webPartContent = `
     import Vue from 'vue';
