@@ -38,6 +38,9 @@ module.exports = class extends Generator {
             default: 'HelloWorld',
             message: 'What is your web part name?',
             validate: (input) => {
+                //
+                // copied from SPFx generator
+                //
                 const normalizedNames = BCG.normalizeComponentNames(input, this.codeName);
                 const outputFolderPath = this._getOutputFolder(normalizedNames.componentNameCamelCase);
                 if (this.fs.exists(outputFolderPath)) {
@@ -71,10 +74,14 @@ module.exports = class extends Generator {
         this._applyGulpConfig();
         this._copyComponent();
         this._copyShims();
+        this._removeScssFile();
         this._updateWebPartCode();
         this._installPackages();
     }
 
+    /**
+     * updates gulpfile.js to process .vue files
+     */
     _applyGulpConfig() {
         let gulpfileContent = this.fs.read(this.destinationPath('gulpfile.js'));
 
@@ -119,6 +126,9 @@ build.initialize(gulp);`);
         fs.writeFileSync(this.destinationPath('gulpfile.js'), gulpfileContent);
     }
 
+    /**
+     * installs npm packages for vue.js
+     */
     _installPackages() {
         const done = this.async();
         this.npmInstall(['vue', 'vue-class-component', 'vue-property-decorator'], ['--save']);
@@ -126,6 +136,9 @@ build.initialize(gulp);`);
         done();
     }
 
+    /**
+     * copies component for templates folder to destination
+     */
     _copyComponent() {
         let scssContent = this.fs.read(this.templatePath('components/WebPart/WebPart.module.scss')).toString();
         scssContent = scssContent.replace(/\{WebPart\}/gm, this.componentClassName);
@@ -149,19 +162,29 @@ build.initialize(gulp);`);
         //    this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentName}/${this.componentName}.vue`));
     }
 
+    /**
+     * copies shims file
+     */
     _copyShims() {
         this.fs.copy(this.templatePath('vue-shims.d.ts'),
             this.destinationPath('src/vue-shims.d.ts'));
     }
 
+    /**
+     * gets web part folder in destination
+     */
     _getOutputFolder(componentNameCamelCase) {
         return path.join(this.destinationRoot(), 'src', this.folderName, componentNameCamelCase);
     }
 
-
+    /**
+     * Updates web part code to use Vue component instead of HTML
+     */
     _updateWebPartCode() {
         const webPartFilePath = this.destinationPath(`src/webparts/${this.componentName}/${this.componentClassName}.ts`);
         let webPartContent = this.fs.read(webPartFilePath);
+
+        webPartContent = webPartContent.replace(/^[ \t]*import\s+styles\s*from\s*[\'\"]\.\/TestWebPart\.module\.scss[\'\"];/gmi, '');
 
         const renderMatch = /\srender(\(|\s)/gmi.exec(webPartContent);
         const renderMethodOpenBraceIndex = webPartContent.indexOf('{', renderMatch.index);
@@ -206,6 +229,13 @@ import ${this.componentClassName}Component from './components/${this.componentCl
 ${webPartContent}`;
 
         fs.writeFileSync(webPartFilePath, webPartContent);
+    }
+
+    /**
+     * Removes web part's scss file
+     */
+    _removeScssFile() {
+        fs.unlinkSync(this.destinationPath(`src/webparts/${this.componentName}/${this.componentClassName}.module.scss`));
     }
 
 }
