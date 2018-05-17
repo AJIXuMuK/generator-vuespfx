@@ -184,7 +184,9 @@ build.initialize(gulp);`);
         const webPartFilePath = this.destinationPath(`src/webparts/${this.componentName}/${this.componentClassName}.ts`);
         let webPartContent = this.fs.read(webPartFilePath);
 
-        webPartContent = webPartContent.replace(/^[ \t]*import\s+styles\s*from\s*[\'\"]\.\/TestWebPart\.module\.scss[\'\"];/gmi, '');
+        const regex = new RegExp(`^[ \\t]*import\\s+styles\\s*from\\s*[\\'\\"]\\.\\/${this.componentClassName}\\.module\\.scss[\\'\\"];`, 'gmi');
+
+        webPartContent = webPartContent.replace(regex, '');
 
         const renderMatch = /\srender(\(|\s)/gmi.exec(webPartContent);
         const renderMethodOpenBraceIndex = webPartContent.indexOf('{', renderMatch.index);
