@@ -29,10 +29,21 @@ module.exports = class extends Generator {
             chalk.blue('based on\n') +
             chalk.blue.bold('SharePoint Client-side Solution Generator')
         ));
+        this.log('Vue.js generator currently ignores componentType, extensionType, and Framework parameters');
+
+        this.config.set('componentType', 'webpart');
+
+        const options = JSON.parse(JSON.stringify(this.options) || {});
+        options.environment = 'spo';
+        options.componentType = 'webpart';
+        options.framework = 'none';
+
+        this.composeWith(require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), options);
+
     }
 
     prompting() {
-        return this.prompt([{
+        /*return this.prompt([{
             type: 'input',
             name: 'componentName',
             default: 'HelloWorld',
@@ -67,10 +78,12 @@ module.exports = class extends Generator {
                     'componentType': this.componentType
                 }
             );
-        });
+        });*/
     }
 
     install() {
+        this.componentName = this.context.componentName;
+        this.componentClassName = this.context.componentClassName;
         this._applyGulpConfig();
         this._copyComponent();
         this._copyShims();
