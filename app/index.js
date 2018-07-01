@@ -5,8 +5,12 @@ const chalk = require('chalk');
 const yosay = require('yosay');
 const path = require("path");
 const fs = require('fs');
+const _ = require('lodash');
 
 const BCG = require('@microsoft/generator-sharepoint/lib/generators/component/BaseComponentGenerator')
+const YeomanConfiguration = require("@microsoft/generator-sharepoint/lib/common/YeomanConfiguration");
+
+const pkgJson = require('./vue-package.json');
 
 
 
@@ -29,54 +33,91 @@ module.exports = class extends Generator {
             chalk.blue('based on\n') +
             chalk.blue.bold('SharePoint Client-side Solution Generator')
         ));
+        this.log('Vue.js generator currently ignores componentType, extensionType, and Framework parameters');
+
+        if (this.options.packageManager === 'pnpm') {
+            this.log(chalk.red('VueSpfx generator doesn\'t support PNPM package manager because of incorrect installation of vue-loader module.\nUse NPM or YARN instead'));
+            this.env.error();
+        }
+
+        /*this.config.set('componentType', 'webpart');
+
+        const options = JSON.parse(JSON.stringify(this.options) || {});
+        options.environment = 'spo';
+        options.componentType = 'webpart';
+        options.framework = 'none';
+
+        this.composeWith(require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), options);*/
+
     }
 
     prompting() {
-        return this.prompt([{
-            type: 'input',
-            name: 'componentName',
-            default: 'HelloWorld',
-            message: 'What is your web part name?',
-            validate: (input) => {
-                //
-                // copied from SPFx generator
-                //
-                const normalizedNames = BCG.normalizeComponentNames(input, this.codeName);
-                const outputFolderPath = this._getOutputFolder(normalizedNames.componentNameCamelCase);
-                if (this.fs.exists(outputFolderPath)) {
-                    console.log(chalk.yellow(`\nThe folder "${outputFolderPath}" already exists.`
-                        + ` Please choose a different name for your component.`));
-                    return false;
+        return this.prompt([/*{
+            type: 'list',
+            name: 'environment',
+            when: () => !this.config.get('environment'),
+            message: 'Which baseline packages do you want to target for your component(s)?',
+            default: 'spo',
+            choices: [
+                { name: 'SharePoint Online only (latest)', value: 'spo' },
+                { name: 'SharePoint 2016 onwards, including SharePoint Online', value: 'onprem' }
+            ]
+        }, */{
+                type: 'input',
+                name: 'componentName',
+                default: 'HelloWorld',
+                message: 'What is your web part name?',
+                validate: (input) => {
+                    //
+                    // copied from SPFx generator
+                    //
+                    const normalizedNames = BCG.normalizeComponentNames(input, this.codeName);
+                    const outputFolderPath = this._getOutputFolder(normalizedNames.componentNameCamelCase);
+                    if (this.fs.exists(outputFolderPath)) {
+                        console.log(chalk.yellow(`\nThe folder "${outputFolderPath}" already exists.`
+                            + ` Please choose a different name for your component.`));
+                        return false;
+                    }
+                    // disallow quotes, since this will mess with the JSON we put this string into
+                    if (input.indexOf('"') !== -1) {
+                        console.log(chalk.yellow(`\nDo not use double quotes in your title.`));
+                        return false;
+                    }
+                    return true;
                 }
-                // disallow quotes, since this will mess with the JSON we put this string into
-                if (input.indexOf('"') !== -1) {
-                    console.log(chalk.yellow(`\nDo not use double quotes in your title.`));
-                    return false;
-                }
-                return true;
-            }
-        }]).then((answers) => {
-            const normalizedNames = BCG.normalizeComponentNames(answers.componentName, this.codeName);
-            this.componentName = normalizedNames.componentNameCamelCase;
-            this.componentClassName = normalizedNames.componentClassName;
-            this.composeWith(
-                require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), {
-                    'skip-install': false,
-                    'framework': 'none',
-                    'componentName': this.componentName,
-                    'componentType': this.componentType
-                }
-            );
-        });
+            }]).then((answers) => {
+                const normalizedNames = BCG.normalizeComponentNames(answers.componentName, this.codeName);
+                this.componentName = normalizedNames.componentNameCamelCase;
+                this.componentClassName = normalizedNames.componentClassName;
+
+                const options = JSON.parse(JSON.stringify(this.options) || {});
+                options.framework = 'none';
+                options.componentName = this.componentName;
+                options.componentType = 'webpart';
+                //options.environment = answers.environment;
+
+                this.composeWith(
+                    require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), options
+                );
+            });
     }
 
     install() {
+        this.componentName = this.componentName;
+        this.componentClassName = this.componentClassName;
         this._applyGulpConfig();
         this._copyComponent();
         this._copyShims();
         this._removeScssFile();
         this._updateWebPartCode();
-        this._installPackages();
+        this._applyPackageJsonModifications();
+        //this._installPackages();
+    }
+
+    _applyPackageJsonModifications() {
+        const packageJsonContent = this.fs.readJSON(this.destinationPath('package.json'));
+        const newPackageJsonContent = _.merge(packageJsonContent, pkgJson);
+        fs.writeFileSync(this.destinationPath('package.json'), JSON.stringify(newPackageJsonContent, null, 4));
     }
 
     /**
@@ -131,9 +172,41 @@ build.initialize(gulp);`);
      */
     _installPackages() {
         const done = this.async();
-        this.npmInstall(['vue', 'vue-class-component', 'vue-property-decorator'], ['--save']);
-        this.npmInstall(['vue-loader', 'vue-template-compiler', 'webpack-merge'], ['--save-dev']);
+
+        switch (YeomanConfiguration.YeomanConfiguration.packageManager) {
+            /*case 'npm':
+                this.npmInstall(['vue', 'vue-class-component', 'vue-property-decorator'], { save: true });
+                this.npmInstall(['css-loader', 'vue-loader', 'vue-template-compiler', 'webpack-merge'], { 'save-dev': true });
+                break;
+            case 'yarn':
+                this.yarnInstall(['vue', 'vue-class-component', 'vue-property-decorator']);
+                this.yarnInstall(['css-loader', 'vue-loader', 'vue-template-compiler', 'webpack-merge'], { dev: true });
+                break;*/
+            case 'pnpm':
+                this.npmInstall(['vue', 'vue-class-component', 'vue-property-decorator'], { save: true });
+                this.npmInstall(['css-loader', 'vue-loader', 'vue-template-compiler', 'webpack-merge'], { 'save-dev': true });
+                break;
+        }
+
         done();
+    }
+
+    _doPnpmInstall() {
+        const installer = 'pnpm';
+        const args = ['i', '-P', 'vue', 'vue-class-component', 'vue-property-decorator'];
+        const devArgs = ['i', '-D', 'css-loader', 'vue-loader', 'vue-template-compiler', 'webpack-merge'];
+        this.env.runLoop.add('install', (done) => {
+            const depInstallResult = this.spawnCommandSync(installer, args);
+            const devDepInstallResult = this.spawnCommandSync(installer, devArgs);
+            if (depInstallResult.error || devDepInstallResult.error) {
+                this.log(chalk.red('Could not finish installation. \n') +
+                    'Please install ' + installer + ' with ' +
+                    chalk.yellow('npm install -g ' + installer) + ' and try again.');
+            }
+            else {
+                done();
+            }
+        });
     }
 
     /**
