@@ -6,8 +6,6 @@ const yosay = require('yosay');
 const path = require("path");
 const fs = require('fs');
 const _ = require('lodash');
-
-const BCG = require('@microsoft/generator-sharepoint/lib/generators/component/BaseComponentGenerator')
 const YeomanConfiguration = require("@microsoft/generator-sharepoint/lib/common/YeomanConfiguration");
 
 const pkgJson = require('./vue-package.json');
@@ -17,14 +15,8 @@ const pkgJson = require('./vue-package.json');
 module.exports = class extends Generator {
     constructor(args, opts) {
         super(args, opts);
-        //
-        // properties values for web part type of component
-        //
-        this.componentName = 'HelloWorld';
-        this.componentClassName = 'HelloWorldWebPart';
-        this.codeName = 'WebPart';
-        this.folderName = 'webparts';
-        this.componentType = 'webpart';
+
+        this.context = {};
     }
 
     initializing() {
@@ -40,19 +32,40 @@ module.exports = class extends Generator {
             this.env.error();
         }
 
-        /*this.config.set('componentType', 'webpart');
-
-        const options = JSON.parse(JSON.stringify(this.options) || {});
-        options.environment = 'spo';
-        options.componentType = 'webpart';
-        options.framework = 'none';
-
-        this.composeWith(require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), options);*/
+        if (this.options.environment !== undefined) {
+            this.config.set('environment', this.options.environment);
+            this.context.environment = this.options.environment;
+        }
+        if (this.options.packageManager !== undefined) {
+            this.config.set('packageManager', this.options.packageManager);
+            this.context.packageManager = this.options.packageManager;
+        }
+        if (this.options.componentType !== undefined) {
+            this.config.set('componentType', this.options.environment === 'onprem' ? 'webpart' : this.options.componentType);
+            this.context.componentType = this.config.get('componentType');
+        }
+        else {
+            this.config.set('componentType', undefined);
+        }
+        if (this.options.extensionType !== undefined) {
+            this.config.set('extensionType', this.options.extensionType);
+            this.context.extensionType = this.options.extensionType;
+        }
+        else {
+            this.config.set('extensionType', undefined);
+        }
+        if (this.options.componentName !== undefined) {
+            this.config.set('componentName', this.options.componentName);
+            this.context.componentName = this.options.componentName;
+        }
+        else {
+            this.config.set('componentName', undefined);
+        }
 
     }
 
     prompting() {
-        return this.prompt([/*{
+        return this.prompt([{
             type: 'list',
             name: 'environment',
             when: () => !this.config.get('environment'),
@@ -62,62 +75,38 @@ module.exports = class extends Generator {
                 { name: 'SharePoint Online only (latest)', value: 'spo' },
                 { name: 'SharePoint 2016 onwards, including SharePoint Online', value: 'onprem' }
             ]
-        }, */{
-                type: 'input',
-                name: 'componentName',
-                default: 'HelloWorld',
-                message: 'What is your web part name?',
-                validate: (input) => {
-                    //
-                    // copied from SPFx generator
-                    //
-                    const normalizedNames = BCG.normalizeComponentNames(input, this.codeName);
-                    const outputFolderPath = this._getOutputFolder(normalizedNames.componentNameCamelCase);
-                    if (this.fs.exists(outputFolderPath)) {
-                        console.log(chalk.yellow(`\nThe folder "${outputFolderPath}" already exists.`
-                            + ` Please choose a different name for your component.`));
-                        return false;
-                    }
-                    // disallow quotes, since this will mess with the JSON we put this string into
-                    if (input.indexOf('"') !== -1) {
-                        console.log(chalk.yellow(`\nDo not use double quotes in your title.`));
-                        return false;
-                    }
-                    return true;
+        }]).then((answers) => {
+                if (!this.config.get('environment')) {
+                    this.config.set('environment', answers.environment);
+                    this.context.environment = answers.environment;
                 }
-            }]).then((answers) => {
-                const normalizedNames = BCG.normalizeComponentNames(answers.componentName, this.codeName);
-                this.componentName = normalizedNames.componentNameCamelCase;
-                this.componentClassName = normalizedNames.componentClassName;
 
                 const options = JSON.parse(JSON.stringify(this.options) || {});
                 options.framework = 'none';
-                options.componentName = this.componentName;
-                options.componentType = 'webpart';
-                //options.environment = answers.environment;
+                options.context = this.context;
 
-                this.composeWith(
-                    require.resolve(`@microsoft/generator-sharepoint/lib/generators/app`), options
-                );
+                this.composeWith(require.resolve('../component'), options);
             });
     }
 
     install() {
-        this.componentName = this.componentName;
-        this.componentClassName = this.componentClassName;
         this._applyGulpConfig();
-        this._copyComponent();
         this._copyShims();
-        this._removeScssFile();
-        this._updateWebPartCode();
         this._applyPackageJsonModifications();
-        //this._installPackages();
     }
 
     _applyPackageJsonModifications() {
         const packageJsonContent = this.fs.readJSON(this.destinationPath('package.json'));
+        if (this._isPackageJsonModified(packageJsonContent)) {
+            return;
+        }
         const newPackageJsonContent = _.merge(packageJsonContent, pkgJson);
         fs.writeFileSync(this.destinationPath('package.json'), JSON.stringify(newPackageJsonContent, null, 4));
+    }
+
+    _isPackageJsonModified(packageJsonContent) {
+        console.log(packageJsonContent.dependencies.vue);
+        return !!packageJsonContent.dependencies.vue;
     }
 
     /**
@@ -125,6 +114,10 @@ module.exports = class extends Generator {
      */
     _applyGulpConfig() {
         let gulpfileContent = this.fs.read(this.destinationPath('gulpfile.js'));
+
+        if (gulpfileContent.indexOf(`build.subTask('copy-vue-files'`) !== -1) {
+            return;
+        }
 
         gulpfileContent = gulpfileContent.replace(/build\.initialize\(gulp\);/gmi, `
 var merge = require('webpack-merge');
@@ -191,6 +184,18 @@ build.initialize(gulp);`);
         done();
     }
 
+    /**
+     * copies shims file
+     */
+    _copyShims() {
+        if (this.fs.exists(this.destinationPath('src/vue-shims.d.ts'))) {
+            return;
+        }
+
+        this.fs.copy(this.templatePath('vue-shims.d.ts'),
+            this.destinationPath('src/vue-shims.d.ts'));
+    }
+
     _doPnpmInstall() {
         const installer = 'pnpm';
         const args = ['i', '-P', 'vue', 'vue-class-component', 'vue-property-decorator'];
@@ -209,108 +214,5 @@ build.initialize(gulp);`);
         });
     }
 
-    /**
-     * copies component for templates folder to destination
-     */
-    _copyComponent() {
-        let scssContent = this.fs.read(this.templatePath('components/WebPart/WebPart.module.scss')).toString();
-        scssContent = scssContent.replace(/\{WebPart\}/gm, this.componentClassName);
-        this.fs.write(this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentClassName}/${this.componentClassName}.module.scss`),
-            scssContent);
-        //this.fs.copy(this.templatePath('components/WebPart/WebPart.module.scss'),
-        //    this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentName}/${this.componentName}.module.scss`));
-
-        let tsContent = this.fs.read(this.templatePath('components/WebPart/WebPart.ts')).toString();
-        tsContent = tsContent.replace(/\{WebPart\}/gm, this.componentClassName);
-        this.fs.write(this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentClassName}/${this.componentClassName}.ts`),
-            tsContent);
-        //this.fs.copy(this.templatePath('components/WebPart/WebPart.ts'),
-        //    this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentName}/${this.componentName}.ts`));
-
-        let vueContent = this.fs.read(this.templatePath('components/WebPart/WebPart.vue')).toString();
-        vueContent = vueContent.replace(/\{WebPart\}/gm, this.componentClassName);
-        this.fs.write(this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentClassName}/${this.componentClassName}.vue`),
-            vueContent);
-        //this.fs.copy(this.templatePath('components/WebPart/WebPart.vue'),
-        //    this.destinationPath(`src/webparts/${this.componentName}/components/${this.componentName}/${this.componentName}.vue`));
-    }
-
-    /**
-     * copies shims file
-     */
-    _copyShims() {
-        this.fs.copy(this.templatePath('vue-shims.d.ts'),
-            this.destinationPath('src/vue-shims.d.ts'));
-    }
-
-    /**
-     * gets web part folder in destination
-     */
-    _getOutputFolder(componentNameCamelCase) {
-        return path.join(this.destinationRoot(), 'src', this.folderName, componentNameCamelCase);
-    }
-
-    /**
-     * Updates web part code to use Vue component instead of HTML
-     */
-    _updateWebPartCode() {
-        const webPartFilePath = this.destinationPath(`src/webparts/${this.componentName}/${this.componentClassName}.ts`);
-        let webPartContent = this.fs.read(webPartFilePath);
-
-        const regex = new RegExp(`^[ \\t]*import\\s+styles\\s*from\\s*[\\'\\"]\\.\\/${this.componentClassName}\\.module\\.scss[\\'\\"];`, 'gmi');
-
-        webPartContent = webPartContent.replace(regex, '');
-
-        const renderMatch = /\srender(\(|\s)/gmi.exec(webPartContent);
-        const renderMethodOpenBraceIndex = webPartContent.indexOf('{', renderMatch.index);
-        let renderMethodCloseBraceIndex = -1;
-
-        let openBlocksCount = 1;
-        for (let i = renderMethodOpenBraceIndex + 1, len = webPartContent.length; i < len; i++) {
-            const symb = webPartContent[i];
-            if (symb === '{') {
-                openBlocksCount++;
-            }
-            else if (symb === '}') {
-                openBlocksCount--;
-
-                if (!openBlocksCount) {
-                    renderMethodCloseBraceIndex = i;
-                    break;
-                }
-            }
-        }
-
-        if (renderMethodCloseBraceIndex === -1) {
-            throw new Error('Error updating web part code');
-        }
-
-        webPartContent = `${webPartContent.slice(0, renderMethodOpenBraceIndex + 1)}
-    const id: string = \`wp-\${this.instanceId}\`;
-    this.domElement.innerHTML = \`<div id="\${id}"></div>\`;
-
-    let el = new Vue({
-      el: \`#\${id}\`,
-      render: h => h(${this.componentClassName}Component, {
-        props: {
-          description: this.properties.description
-        }
-      })
-    });
-  ${webPartContent.slice(renderMethodCloseBraceIndex)}`;
-
-        webPartContent = `import Vue from 'vue';
-import ${this.componentClassName}Component from './components/${this.componentClassName}/${this.componentClassName}.vue';
-${webPartContent}`;
-
-        fs.writeFileSync(webPartFilePath, webPartContent);
-    }
-
-    /**
-     * Removes web part's scss file
-     */
-    _removeScssFile() {
-        fs.unlinkSync(this.destinationPath(`src/webparts/${this.componentName}/${this.componentClassName}.module.scss`));
-    }
 
 }
