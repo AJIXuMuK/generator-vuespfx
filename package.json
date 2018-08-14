@@ -1,9 +1,12 @@
 {
   "name": "generator-vuespfx",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "SPFx Generator with Vue.js support",
   "files": [
-    "app"
+    "app",
+    "component",
+    "extensions",
+    "webpart"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
