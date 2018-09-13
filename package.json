@@ -1,6 +1,6 @@
 {
   "name": "generator-vuespfx",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "SPFx Generator with Vue.js support",
   "files": [
     "app",
