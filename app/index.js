@@ -105,7 +105,6 @@ module.exports = class extends Generator {
     }
 
     _isPackageJsonModified(packageJsonContent) {
-        console.log(packageJsonContent.dependencies.vue);
         return !!packageJsonContent.dependencies.vue;
     }
 
