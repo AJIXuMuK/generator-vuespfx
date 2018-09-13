@@ -93,19 +93,19 @@ module.exports = class extends Generator {
         let scssContent = this.fs.read(this.templatePath(`components/${componentType}.module.scss`)).toString();
         const replacementRegExp = new RegExp(`{${componentType}}`, 'gm');
         scssContent = scssContent.replace(replacementRegExp, this.context.componentClassName);
-        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentName}/components/${this.context.componentClassName}/${this.context.componentClassName}.module.scss`),
+        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentNameCamelCase}/components/${this.context.componentClassName}/${this.context.componentClassName}.module.scss`),
             scssContent);
         
         let tsContent = this.fs.read(this.templatePath(`components/${componentType}.ts`)).toString();
         replacementRegExp.lastIndex = 0;
         tsContent = tsContent.replace(replacementRegExp, this.context.componentClassName);
-        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentName}/components/${this.context.componentClassName}/${this.context.componentClassName}.ts`),
+        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentNameCamelCase}/components/${this.context.componentClassName}/${this.context.componentClassName}.ts`),
             tsContent);
 
         let vueContent = this.fs.read(this.templatePath(`components/${componentType}.vue`)).toString();
         replacementRegExp.lastIndex = 0;
         vueContent = vueContent.replace(replacementRegExp, this.context.componentClassName);
-        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentName}/components/${this.context.componentClassName}/${this.context.componentClassName}.vue`),
+        this.fs.write(this.destinationPath(`src/${componentTypePath}/${this.context.componentNameCamelCase}/components/${this.context.componentClassName}/${this.context.componentClassName}.vue`),
             vueContent);
     }
 }
